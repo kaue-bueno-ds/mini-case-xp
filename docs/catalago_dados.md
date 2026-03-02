@@ -43,3 +43,30 @@ Este documento descreve as tabelas/datasets do projeto, com colunas, tipos e sig
 | amount        | float  | Valor do movimento na moeda (`currency`) |
 | reference     | string | Referência fictícia do movimento |
 | ingested_at   | string (ISO-8601 UTC) | Timestamp de geração/ingestão |
+
+---
+
+# (Planejado) Camada Gold (SSOT para BI)
+
+## gold_liquidity_daily (Delta)
+
+**Descrição:** Tabela final pronta para dashboard (SSOT).  
+**Origem:** `raw_cash_movements` + `raw_fx_rates` (depois via Bronze/Silver)  
+**Granularidade:** 1 linha por dia, por desk (valores em BRL)  
+**Chave:** (`date`, `desk`)
+
+| Coluna              | Tipo   | Descrição |
+|---------------------|--------|----------|
+| date                | date   | Dia de referência (YYYY-MM-DD) |
+| desk                | string | Mesa/área (Treasury, Funding, FX, ...) |
+| inflow_brl          | double | Soma das entradas do dia convertidas para BRL |
+| outflow_brl         | double | Soma das saídas do dia convertidas para BRL |
+| net_flow_brl        | double | `inflow_brl - outflow_brl` |
+| movements_count     | long   | Quantidade de movimentos no dia (IN+OUT) |
+| last_refresh_utc    | timestamp/string | Data/hora da última atualização da Gold |
+
+**Regras de negócio (MVP):**
+- Movimentos em BRL entram direto.
+- Movimentos em USD são convertidos usando `raw_fx_rates` do mesmo `movement_date` (USD->BRL).
+- `inflow_brl` considera apenas `movement_type = 'IN'`.
+- `outflow_brl` considera apenas `movement_type = 'OUT'`.
