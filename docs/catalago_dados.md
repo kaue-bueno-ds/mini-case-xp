@@ -45,12 +45,85 @@ Este documento descreve as tabelas/datasets do projeto, com colunas, tipos e sig
 | ingested_at   | string (ISO-8601 UTC) | Timestamp de geração/ingestão |
 
 ---
+# (Planejado) Camada Bronze (Delta)
 
+## bronze_cash_movements (Delta)
+
+**Origem:** `raw_cash_movements.csv`  
+**Descrição:** Movimentos de caixa brutos, carregados para o lake.  
+**Granularidade:** 1 linha por movimento (pode conter duplicatas no raw)  
+**Chave sugerida:** `movement_id` (pode repetir no bronze)
+
+| Coluna         | Tipo        | Descrição |
+|---------------|-------------|----------|
+| movement_id   | long/int    | Identificador do movimento |
+| movement_ts   | timestamp   | Data/hora do movimento |
+| movement_date | date        | Data do movimento |
+| desk          | string      | Mesa/área |
+| currency      | string      | Moeda (`BRL`/`USD`) |
+| movement_type | string      | `IN` / `OUT` |
+| category      | string      | Categoria |
+| amount        | double      | Valor do movimento na moeda (`currency`) |
+| reference     | string      | Referência do movimento |
+| ingested_at   | timestamp/string | Timestamp do raw |
+
+---
+
+## bronze_fx_rates (Delta)
+
+**Origem:** `raw_fx_rates.csv`  
+**Descrição:** Taxa de câmbio diária (USD->BRL) bruta no lake.  
+**Granularidade:** 1 linha por dia  
+**Chave sugerida:** (`rate_date`, `from_ccy`, `to_ccy`)
+
+| Coluna       | Tipo        | Descrição |
+|-------------|-------------|----------|
+| rate_date   | date        | Data da taxa |
+| from_ccy    | string      | Moeda origem (`USD`) |
+| to_ccy      | string      | Moeda destino (`BRL`) |
+| rate        | double      | Taxa USD->BRL |
+| source      | string      | Fonte |
+| ingested_at | timestamp/string | Timestamp do raw |
+
+---
+
+# (Planejado) Camada Silver (Delta)
+
+## silver_cash_movements_enriched (Delta)
+
+**Origem:** `bronze_cash_movements` + `bronze_fx_rates`  
+**Descrição:** Movimentos tratados e enriquecidos com FX, com valor normalizado em BRL sem perder o original.  
+**Granularidade:** 1 linha por movimento (`movement_id` único)  
+**Partição sugerida:** `movement_date`  
+**Chave:** `movement_id`
+
+| Coluna          | Tipo      | Descrição |
+|----------------|-----------|----------|
+| movement_id    | long      | Identificador único do movimento |
+| movement_ts    | timestamp | Data/hora do movimento |
+| movement_date  | date      | Data do movimento |
+| desk           | string    | Mesa/área |
+| currency       | string    | Moeda original (`BRL`/`USD`) |
+| movement_type  | string    | `IN` / `OUT` |
+| category       | string    | Categoria |
+| amount_original| double    | Valor original (mesmo do bronze `amount`) |
+| fx_rate_to_brl | double    | 1.0 se BRL, senão taxa USD->BRL do dia |
+| amount_brl     | double    | `amount_original * fx_rate_to_brl` |
+| reference      | string    | Referência |
+| ingested_at    | timestamp/string | Timestamp do raw |
+| processed_at   | timestamp | Timestamp de processamento da Silver |
+
+**Regras (MVP):**
+- Deduplicar por `movement_id` (mantendo o registro mais recente por `ingested_at`, quando aplicável).
+- Left join com FX por (`movement_date` = `rate_date`) para movimentos em USD.
+- Se `currency='BRL'`, `fx_rate_to_brl=1.0`.
+---
 # (Planejado) Camada Gold (SSOT para BI)
 
 ## gold_liquidity_daily (Delta)
 
-**Descrição:** Tabela final pronta para dashboard (SSOT).  
+**Descrição:** Tabela final pronta para dashboard (SSOT).
+**Saída local**: `data/processed/gold/gold_liquidity_daily.csv`
 **Origem:** `raw_cash_movements` + `raw_fx_rates` (depois via Bronze/Silver)  
 **Granularidade:** 1 linha por dia, por desk (valores em BRL)  
 **Chave:** (`date`, `desk`)
