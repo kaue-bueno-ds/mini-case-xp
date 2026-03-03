@@ -47,6 +47,11 @@ def build_gold_liquidity_daily() -> str:
     agg = agg.sort_values(["movement_date", "desk"])
 
     out_path = os.path.join(GOLD_DIR, "gold_liquidity_daily.csv")
+    
+    agg["inflow_brl"] = agg["inflow_brl"].round(2)
+    agg["outflow_brl"] = agg["outflow_brl"].round(2)
+    agg["net_flow_brl"] = agg["net_flow_brl"].round(2)
+    
     agg.to_csv(out_path, index=False)
     return out_path
 

@@ -17,5 +17,5 @@ A área pediu uma tabela final (SSOT) no lake com granularidade diária por desk
 - [x] Gerador local de dados fictícios (CSV)
 - [x] Catálogo de dados (raw)
 - [x] Glossário
-- [ ] Camadas Bronze/Silver/Gold no Databricks (Delta)
-- [ ] Conexão Power BI consumindo a camada Gold
+- [x] Camadas Bronze/Silver/Gold no Databricks (Delta)
+- [x] Conexão Power BI consumindo a camada Gold
